@@ -106,6 +106,18 @@ logger.propagate = 0
 
 POLL_TIME = 5  # decided to hard-code rather than configure here
 
+def _parse_qacct_state(job_id):
+    check_result = subprocess.run(['qacct','-j', str(job_id)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stderr = check_result.stderr.decode().strip()
+    stdout = check_result.stdout.decode().strip().splitlines()
+    if stderr == "error: job id {} not found".format(job_id):
+        pass
+    else:
+        exit_status = [line for line in stdout if line.startswith("exit_status")][0].split()[1]
+        if exit_status == "0":
+            break
+        raise RuntimeError(f"Job {job_id} finished with exit status: {exit_status}")
+
 
 def _parse_qstat_state(qstat_out, job_id):
     """Parse "state" column from `qstat` output for given job_id
