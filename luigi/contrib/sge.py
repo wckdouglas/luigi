@@ -106,18 +106,6 @@ logger.propagate = 0
 
 POLL_TIME = 5  # decided to hard-code rather than configure here
 
-def _parse_qacct_state(job_id):
-    check_result = subprocess.run(['qacct','-j', str(job_id)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stderr = check_result.stderr.decode().strip()
-    stdout = check_result.stdout.decode().strip().splitlines()
-    if stderr == "error: job id {} not found".format(job_id):
-        pass
-    else:
-        exit_status = [line for line in stdout if line.startswith("exit_status")][0].split()[1]
-        if exit_status == "0":
-            break
-        raise RuntimeError(f"Job {job_id} finished with exit status: {exit_status}")
-
 
 def _parse_qstat_state(qstat_out, job_id):
     """Parse "state" column from `qstat` output for given job_id
@@ -146,7 +134,12 @@ def _build_qsub_command(cmd, job_name, outfile, errfile, pe, n_cpu, queue):
     if queue:
         qsub_template += "-q %s" % (queue)
     return qsub_template.format(
-        cmd=cmd, job_name=job_name, outfile=outfile, errfile=errfile, pe=pe, n_cpu=n_cpu
+        cmd=cmd,
+        job_name=job_name,
+        outfile=outfile,
+        errfile=errfile,
+        pe=pe,
+        n_cpu=n_cpu,
     )
 
 
@@ -192,7 +185,9 @@ class SGEJobTask(luigi.Task):
         "formatted with class variables to name the job with qsub.",
     )
     job_name = luigi.Parameter(
-        significant=False, default=None, description="Explicit job name given via qsub."
+        significant=False,
+        default=None,
+        description="Explicit job name given via qsub.",
     )
     run_locally = luigi.BoolParameter(
         significant=False, description="run locally instead of on the cluster"
@@ -237,6 +232,7 @@ class SGEJobTask(luigi.Task):
             errors[0].strip() == "stdin: is not a tty"
         ):  # SGE complains when we submit through a pipe
             errors.pop(0)
+
         return errors
 
     def _init_local(self):
@@ -260,7 +256,9 @@ class SGEJobTask(luigi.Task):
             # This is not necessary if luigi is importable from the cluster node
             logging.debug("Tarballing dependencies")
             # Grab luigi and the module containing the code to be run
-            packages = [luigi] + [__import__(self.__module__, None, None, "dummy")]
+            packages = [luigi] + [
+                __import__(self.__module__, None, None, "dummy")
+            ]
             create_packages_archive(
                 packages, os.path.join(self.tmp_dir, "packages.tar")
             )
@@ -289,7 +287,9 @@ class SGEJobTask(luigi.Task):
             self.job_file = os.path.join(out_dir, "job-instance.pickle")
             if self.__module__ == "__main__":
                 d = pickle.dumps(self)
-                module_name = os.path.basename(sys.argv[0]).rsplit(".", 1)[0].encode()
+                module_name = (
+                    os.path.basename(sys.argv[0]).rsplit(".", 1)[0].encode()
+                )
                 d = d.replace(b"(c__main__", b"(c" + module_name)
                 with open(self.job_file, "wb") as f:
                     f.write(d)
@@ -324,8 +324,10 @@ class SGEJobTask(luigi.Task):
         logger.debug("qsub command: \n" + submit_cmd)
 
         # Submit the job and grab job ID
-        self.job_id = subprocess.check_output(submit_cmd, shell=True).decode().strip()
-        logger.debug("Submitted job to qsub with job ID:\n" + self.job_id)
+        self.job_id = (
+            subprocess.check_output(submit_cmd, shell=True).decode().strip()
+        )
+        logger.info("Submitted job to qsub with job ID: " + self.job_id)
 
         self._track_job()
 
@@ -342,35 +344,28 @@ class SGEJobTask(luigi.Task):
         while True:
             # Sleep for a little bit
             time.sleep(self.poll_time)
-
-            # See what the job's up to
-            # ASSUMPTION
-            qstat_out = subprocess.check_output(["qstat"])
-            sge_status = _parse_qstat_state(qstat_out, self.job_id)
-            if sge_status == "r":
-                logger.info("Job is running...")
-            elif sge_status == "qw":
-                logger.info("Job is pending...")
-            elif "E" in sge_status:
-                logger.error(
-                    "Job has FAILED:\n" + "\n".join(self._fetch_task_failures())
-                )
-                break
-            elif sge_status == "t" or sge_status == "u":
-                # Then the job could either be failed or done.
-                errors = self._fetch_task_failures()
-                if not errors:
-                    logger.info("Job is done")
-                else:
-                    logger.error("Job has FAILED:\n" + "\n".join(errors))
-                break
+            check_result = subprocess.run(
+                ["qacct", "-j", str(self.job_id)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            stderr = check_result.stderr.decode().strip()
+            stdout = check_result.stdout.decode().strip().splitlines()
+            if stderr == "error: job id {} not found".format(self.job_id):
+                logging.info("Job {} is running".format(self.job_id))
+                pass
             else:
-                logger.info("Job status is UNKNOWN!")
-                logger.info("Status is : %s" % sge_status)
-                raise Exception(
-                    "job status isn't one of ['r', 'qw', 'E*', 't', 'u']: %s"
-                    % sge_status
-                )
+                exit_status = [
+                    line for line in stdout if line.startswith("exit_status")
+                ][0].split()[1]
+                if exit_status == "0":
+                    break
+                else:
+                    raise RuntimeError(
+                        "Job {} finished with exit status: {}".format(
+                            self.job_id, exit_status
+                        )
+                    )
 
 
 class LocalSGEJobTask(SGEJobTask):
