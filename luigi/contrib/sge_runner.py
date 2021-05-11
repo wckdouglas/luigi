@@ -34,7 +34,7 @@ return from SGETask.run()
 
 import os
 import sys
-import pickle
+import dill as pickle
 import logging
 import tarfile
 
@@ -49,7 +49,7 @@ def _do_work_on_compute_node(work_dir, tarball=True):
 
     # Open up the pickle file with the work to be done
     os.chdir(work_dir)
-    with open("job-instance.pickle", "r") as f:
+    with open("job-instance.pickle", "rb") as f:
         job = pickle.load(f)
 
     # Do the work contained
@@ -68,21 +68,22 @@ def _extract_packages_archive(work_dir):
     for tarinfo in tar:
         tar.extract(tarinfo)
     tar.close()
-    if '' not in sys.path:
-        sys.path.insert(0, '')
+    if "" not in sys.path:
+        sys.path.insert(0, "")
 
     os.chdir(curdir)
 
 
 def main(args=sys.argv):
-    """Run the work() method from the class instance in the file "job-instance.pickle".
-    """
+    """Run the work() method from the class instance in the file "job-instance.pickle"."""
     try:
         tarball = "--no-tarball" not in args
         # Set up logging.
         logging.basicConfig(level=logging.WARN)
         work_dir = args[1]
-        assert os.path.exists(work_dir), "First argument to sge_runner.py must be a directory that exists"
+        assert os.path.exists(
+            work_dir
+        ), "First argument to sge_runner.py must be a directory that exists"
         project_dir = args[2]
         sys.path.append(project_dir)
         _do_work_on_compute_node(work_dir, tarball)
@@ -92,5 +93,5 @@ def main(args=sys.argv):
         raise
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
