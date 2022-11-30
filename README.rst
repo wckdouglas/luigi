@@ -2,8 +2,8 @@
    :alt: Luigi Logo
    :align: center
 
-.. image:: https://img.shields.io/travis/spotify/luigi/master.svg?style=flat
-    :target: https://travis-ci.org/spotify/luigi
+.. image:: https://img.shields.io/endpoint.svg?url=https%3A%2F%2Factions-badge.atrox.dev%2Fspotify%2Fluigi%2Fbadge&label=build&logo=none&%3Fref%3Dmaster&style=flat
+    :target: https://actions-badge.atrox.dev/spotify/luigi/goto?ref=master
 
 .. image:: https://img.shields.io/codecov/c/github/spotify/luigi/master.svg?style=flat
     :target: https://codecov.io/gh/spotify/luigi?branch=master
@@ -100,7 +100,7 @@ Conceptually, Luigi is similar to `GNU
 Make <http://www.gnu.org/software/make/>`_ where you have certain tasks
 and these tasks in turn may have dependencies on other tasks. There are
 also some similarities to `Oozie <http://oozie.apache.org/>`_
-and `Azkaban <http://data.linkedin.com/opensource/azkaban>`_. One major
+and `Azkaban <https://azkaban.github.io/>`_. One major
 difference is that Luigi is not just built specifically for Hadoop, and
 it's easy to extend it with other kinds of tasks.
 
